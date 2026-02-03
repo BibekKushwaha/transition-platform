@@ -1,10 +1,27 @@
-'use client';
-
+"use client";
+import { useAppSelector, selectIsAuthenticated, logout, useAppDispatch, useLogoutMutation } from '@repo/store';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+  const [logoutApi] = useLogoutMutation();
+  
+
   const [isOpen, setIsOpen] = useState(false);
+  const handleLogout = async () => {
+    try {
+      await logoutApi().unwrap?.();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+    dispatch(logout());
+    setIsOpen(false);
+    router.push('/auth/login');
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-100 shadow-sm">
@@ -22,18 +39,39 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-3">
+            {!isAuthenticated && (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="px-6 py-2.5 text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 ease-in-out"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="px-6 py-2.5 text-white font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 ease-in-out"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+            {isAuthenticated && (
+              <>
             <Link
-              href="/login"
-              className="px-6 py-2.5 text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 ease-in-out"
+            href="/dashboard"
+            className="block w-full px-6 py-3 text-center text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-white transition-all duration-200"
+            onClick={() => setIsOpen(false)}
+          >
+            Dashboard
+          </Link>
+            <button
+              onClick={handleLogout}  
+              className="ml-4 px-4 py-2.5 text-white font-semibold rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-md hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 ease-in-out"
             >
-              Login
-            </Link>
-            <Link
-              href="/signup"
-              className="px-6 py-2.5 text-white font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 ease-in-out"
-            >
-              Sign Up
-            </Link>
+              Logout
+            </button>
+            </> 
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -71,20 +109,40 @@ export default function Navbar() {
         }`}
       >
         <div className="px-6 pt-4 pb-6 space-y-3 bg-gradient-to-b from-white to-gray-50 border-t border-gray-100">
-          <Link
-            href="/login"
+          {!isAuthenticated && (<>
+          <Link 
+            href="/auth/login"
             className="block w-full px-6 py-3 text-center text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-white transition-all duration-200"
             onClick={() => setIsOpen(false)}
           >
             Login
           </Link>
           <Link
-            href="/signup"
+            href="/auth/signup"
             className="block w-full px-6 py-3 text-center text-white font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200"
             onClick={() => setIsOpen(false)}
           >
             Sign Up
           </Link>
+          </>)}
+          {isAuthenticated && (
+            <>
+            <Link
+            href="#"
+            className="block w-full px-6 py-3 text-center text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-white transition-all duration-200"
+            onClick={() => setIsOpen(false)}
+          >
+            Dashboard
+          </Link>
+          
+          <button
+            onClick={handleLogout}  
+            className="w-full px-4 py-3 text-white font-semibold rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-md hover:shadow-lg transition-all duration-200"
+          >
+            Logout
+          </button>
+          </>
+          )}
         </div>
       </div>
     </nav>

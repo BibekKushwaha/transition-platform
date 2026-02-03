@@ -1,0 +1,21 @@
+{
+  "name": "utils-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cloudinary": "^2.9.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "nodemailer": "^7.0.13",
+    "tsx": "^4.21.0"
+  }
+}

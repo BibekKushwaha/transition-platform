@@ -4,7 +4,7 @@ import { prisma } from "@repo/db/client";
 import ErrorHandler from "../utils/errorHandler.js";
 import { TryCatch } from "../utils/tryCatch.js";
 import bcrypt from 'bcrypt';
-import { registerSchema, loginSchema } from "@repo/schemas";
+import { registerSchema, loginSchema } from "@repo/schemas/auth";
 
 import jwt from 'jsonwebtoken';
 // import { forgotPasswordTemplate } from "../templete.js";
@@ -12,7 +12,7 @@ import jwt from 'jsonwebtoken';
 // import { redisClient } from "../index.js";
 
 
-export const  registerUser = TryCatch(async(req,res,next)=>{
+export const  registerUser = TryCatch(async(req,res)=>{
       const result = registerSchema.safeParse(req.body);
 
     if (!result.success) {
@@ -22,9 +22,15 @@ export const  registerUser = TryCatch(async(req,res,next)=>{
     }
       const { name, email, password } = result.data;
 
-    const existingUser = await prisma.user.findFirst({
-      where: { email },
-    });
+    let existingUser: any = null;
+    try {
+      existingUser = await prisma.user.findFirst({
+        where: { email },
+      });
+    } catch (err) {
+      console.error('Prisma findFirst error (register)', { email }, err);
+      throw new ErrorHandler(500, 'Database error during user lookup');
+    }
 
 
     if (existingUser) {
@@ -80,7 +86,14 @@ export const  registerUser = TryCatch(async(req,res,next)=>{
         }
     );
 
-    res.cookie("token", token);
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      maxAge: 15 * 24 * 60 * 60 * 1000,
+    };
+
+res.cookie('token', token, cookieOptions);
 
 return res.status(201).json({
   success: true,
@@ -90,7 +103,7 @@ return res.status(201).json({
 
 });
 
-export const loginUser = TryCatch(async (req, res, next) => {
+export const loginUser = TryCatch(async (req, res) => {
       const result = loginSchema.safeParse(req.body);
 
     if (!result.success) {
@@ -100,11 +113,17 @@ export const loginUser = TryCatch(async (req, res, next) => {
     }
       const { email, password } = result.data;
 
-  const user = await prisma.user.findUnique({
-    where: {
-      email: email,
-    },
-  })
+  let user: any = null;
+  try {
+    user = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+  } catch (err) {
+    console.error('Prisma findUnique error (login)', { email }, err);
+    throw new ErrorHandler(500, 'Database error during user lookup');
+  }
 
   if (!user) {
     throw new ErrorHandler(400, "Invalid credentials");
@@ -124,11 +143,65 @@ export const loginUser = TryCatch(async (req, res, next) => {
       expiresIn: "15d",
     }
   );
-  res.cookie("token", token);
+  const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 15 * 24 * 60 * 60 * 1000,
+};
+
+res.cookie('token', token, cookieOptions);
   res.json({
     message: "user Loggedin",
     user: user, 
   });
+});
+
+export const logoutUser = TryCatch(async (req, res) => {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 0,
+  };
+
+  res.clearCookie('token', cookieOptions);
+  res.cookie('token', '', cookieOptions);
+
+  res.json({
+    message: 'User logged out successfully',
+  });
+});
+
+export const getCurrentUser = TryCatch(async (req, res) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SEC as string);
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+
+  const userId = decoded?.id;
+  if (!userId) {
+    return res.status(401).json({ message: 'Invalid token payload' });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, email: true, createdAt: true },
+  });
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  return res.json({ success: true, user });
 });
 
 // export const forgotPassword = TryCatch(async (req, res, next) => {
